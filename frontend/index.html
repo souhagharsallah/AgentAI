@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polytech RAG Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .profil-badge {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+        }
+
+        .msg-bot {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .msg-bot strong {
+            color: #a5b4fc;
+        }
+
+        .chat-input-area {
+            padding: 20px 24px;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 12px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        #chat-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 16px;
+            border-radius: 16px;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #chat-input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* Modal Profile */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--bg-gradient);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 24px;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .modal-content p {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #a5b4fc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            appearance: none;
+        }
+        select option {
+            background: #1e1b4b;
+            color: white;
+        }
+
+        .modal-content button {
+            width: 100%;
+            padding: 16px;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        /* Loading Dots */
+        .typing-indicator {
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            align-self: flex-start;
+            align-items: center;
+            height: 40px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Formatter for sources */
+        .source-tag {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            margin-right: 6px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>RAG IA Étudiant</h1>
+            <div class="profil-badge" id="profilBadge">Profil Actif</div>
+        </div>
+
+        <div class="chat-messages" id="chatbox">
+            <div class="message msg-bot">
+                Bonjour ! Posez-moi une question sur votre cursus, les projets à réaliser, ou les débouchés.
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Je me demande si..." autocomplete="off">
+            <button id="send-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal overlay -->
+        <div class="modal-overlay" id="profileModal">
+            <div class="modal-content">
+                <h2>Cibler la recherche</h2>
+                <p>Afin de vous donner une réponse ultras-précise avec notre RAG, veuillez m'indiquer votre profil.</p>
+                <div class="input-group">
+                    <label>Formation</label>
+                    <select id="select-formation">
+                        <option value="idu">IDU (Ingénierie des Données)</option>
+                        <option value="meca">Mécanique</option>
+                        <option value="EIT">EIT / Environnement</option>
+                        <option value="batiment">Bâtiment</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Année</label>
+                    <select id="select-annee">
+                        <option value="3">3ème Année</option>
+                        <option value="4">4ème Année</option>
+                        <option value="5">5ème Année</option>
+                    </select>
+                </div>
+                <button id="save-profile-btn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatbox = document.getElementById('chatbox');
+        const inputField = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const profileModal = document.getElementById('profileModal');
+        const saveProfileBtn = document.getElementById('save-profile-btn');
+        const profilBadge = document.getElementById('profilBadge');
+
+        let userFormation = null;
+        let userAnnee = null;
+        let pendingQuestion = null; // Stored here if interrupted to ask profile
+
+        function addMessage(text, sender, sources = []) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message');
+            msgDiv.classList.add(sender === 'bot' ? 'msg-bot' : 'msg-user');
+            
+            // Basic markdown handling
+            let formattedText = text.replace(/\n/g, '<br>');
+            formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            msgDiv.innerHTML = formattedText;
+
+            // Append sources
+            if (sources && sources.length > 0) {
+                const sourceContainer = document.createElement('div');
+                sourceContainer.style.marginTop = '10px';
+                sourceContainer.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+                sourceContainer.style.paddingTop = '8px';
+                
+                // Show max 3 sources to keep UI clean
+                const uniqueSources = [];
+                sources.forEach(s => {
+                    const label = s.file_name.replace('.pdf', '');
+                    if(!uniqueSources.includes(label)) uniqueSources.push(label);
+                });
+
+                uniqueSources.slice(0,3).forEach(label => {
+                    const sTag = document.createElement('span');
+                    sTag.classList.add('source-tag');
+                    sTag.innerText = "📄 " + label.substring(0, 25) + "...";
+                    sourceContainer.appendChild(sTag);
+                });
+                msgDiv.appendChild(sourceContainer);
+            }
+
+            chatbox.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.classList.add('typing-indicator');
+            typingDiv.id = 'typing';
+            typingDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            chatbox.appendChild(typingDiv);
+            scrollToBottom();
+            return typingDiv;
+        }
+
+        function removeTyping() {
+            const typingDiv = document.getElementById('typing');
+            if (typingDiv) {
+                typingDiv.remove();
+            }
+        }
+
+        function scrollToBottom() {
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        async function sendQueryToBackend(question) {
+            const typingIndicator = showTyping();
+            
+            try {
+                // Fetch JSON payload
+                const payload = {
+                    question: question,
+                    formation: userFormation,
+                    annee: userAnnee
+                };
+
+                // Remove null values so Python default takes over perfectly
+                if (!payload.formation) delete payload.formation;
+                if (!payload.annee) delete payload.annee;
+
+                const response = await fetch('http://127.0.0.1:8000/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                removeTyping();
+
+                // Intercept logic for profile info request
+                if (data.answer.includes("Avant toute chose")) {
+                    pendingQuestion = question; 
+                    profileModal.classList.add('active');
+                } else {
+                    addMessage(data.answer, 'bot', data.sources);
+                }
+
+            } catch (error) {
+                removeTyping();
+                addMessage("Erreur de connexion au serveur local. Vérifiez que `uvicorn app.main:app --reload` tourne bien !", 'bot');
+                console.error(error);
+            }
+        }
+
+        function handleSend() {
+            const text = inputField.value.trim();
+            if (text === '') return;
+            
+            addMessage(text, 'user');
+            inputField.value = '';
+            
+            sendQueryToBackend(text);
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        saveProfileBtn.addEventListener('click', () => {
+            const formVal = document.getElementById('select-formation').value;
+            const annVal = document.getElementById('select-annee').value;
+
+            userFormation = formVal;
+            userAnnee = annVal;
+
+            profilBadge.innerText = `${userFormation.toUpperCase()} - A${userAnnee}`;
+            profilBadge.style.display = 'block';
+
+            profileModal.classList.remove('active');
+
+            if (pendingQuestion) {
+                // Re-trigger the API immediately
+                addMessage(`💡 Profil mis à jour (${userFormation}, A${userAnnee}). Je relance la recherche...`, 'bot');
+                sendQueryToBackend(pendingQuestion);
+                pendingQuestion = null;
+            }
+        });
+
+    </script>
+</body>
+</html>
